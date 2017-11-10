@@ -7,7 +7,7 @@ import argparse
 import sys
 
 # Debug output
-print sys.argv[1:]
+print(sys.argv[1:])
 
 def check_positive(value):
     try:
