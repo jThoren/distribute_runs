@@ -1,4 +1,5 @@
 import distribute_runs
+import random
 
 # Testing the parser
 def test_number_of_events():
@@ -37,6 +38,19 @@ def test_test_nodes():
     assert args.test_nodes == True
     args = distribute_runs.get_args([])
     assert args.test_nodes == False
+
+def test_randomList():
+    # Check that the seed is giving the expected
+    # list of random numbers
+    random.seed(1)
+    r1list = [2, 9, 8, 3, 5, 5, 7, 8, 1]
+    r2list = [random.randint(1,10) for i in range(9)]
+    assert r1list == r2list
+
+    runique = [2, 9, 8, 3, 5, 7, 1]
+    random.seed(1)
+    assert runique == distribute_runs.randomList(7,1,10)
+    
     
 #def test_events_per_node():
 #    args = distribute_runs.get_args(['-N','246','-E','123'])
