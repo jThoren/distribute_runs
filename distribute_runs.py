@@ -17,9 +17,6 @@ import time
 import load
 
 
-# Debug output
-print(sys.argv[1:])
-
 def check_positive(value):
     """
     Type check for the argument parser, checks if a number is a positive integer.
@@ -31,6 +28,9 @@ def check_positive(value):
     if ivalue <= 0:
          raise argparse.ArgumentTypeError("invalid positive int value: %s" % value)
     return ivalue
+
+# Flags left to implement:
+# --subsequent-shower
 
 def get_args(args):
     """
@@ -114,6 +114,10 @@ if __name__ == "__main__":
     f.close()
     infile = [line for line in infile if line.find('saverun') == -1]
 
+    # check in file
+    ###
+    
+
     if not args.rerun:
         # Setup the combinations of p1-p5
         parameterSets = parameterCombinations([args.p1,args.p2,args.p3,args.p4,args.p5])
@@ -160,13 +164,13 @@ if __name__ == "__main__":
             # Create the in file
             f = open('runs_'+str(i)+'.in','w')
             for line in infile:
-                f.write(line + '\n')
+                f.write(line)
             for line in par:
                 f.write(line + '\n')
             f.write('saverun runs_' + str(i) + ' EventGenerator')
             f.close()
 
-            # Create script to read with Herwig
+            # Create script for Herwig read
             g = open('read.sh','w')
             g.write('#!/bin/bash\n')
             g.write('source ' + args.herwig_path + '\n')
@@ -188,22 +192,89 @@ if __name__ == "__main__":
 
             os.chdir('..')
 
-
-    # Setup the seeds
-    seeds = randomList(args.nruns,1,999999)
-    print(seeds)
     # Set the load
     computers, threads = load.load(args.load)
-    print(computers,threads)
-    # check in file
 
-    # copy the in file with suitable changes to the relevant folders
+    # Create a run script
+    thisdir = os.getcwd()
 
-    # build Herwig (in multiple folders?)
-
-    # distribute integration
+    # Create script for Herwig run
+    h = open('run.sh','w')
+    h.write('#!/bin/bash\n')
+    h.write('source ' + args.herwig_path + '\n')
+    h.write('source ' + args.analyses_path + '\n')
+    h.write('nice -19 Herwig run $1 -N ' + str(args.nevents) + ' --seed $2\n' )
+    h.close()
+    p = subprocess.Popen(['chmod a+x run.sh'],shell=True,stdin=None,stdout=None,stderr=None)
+    while p.poll() is None:
+	time.sleep(0.1)
 
     # distribute runs
+    for i in range(len(parameterSets)):
+        finished = 0
+        started = 0
+        proc_run = []
+        manager = []
+        # Setup the seeds
+        seeds = randomList(args.nruns,1,999999)
+        # Loop over the available computers
+        for host in computers:
+            isgood = False
+            for k in range(0,threads[computers.index(host)]):
+                try:
+                    # Change to the correct directory after ssh
+                    command = 'cd ' + thisdir + '/herwig_runs_' + str(i) + '; '
+                    command += '../run.sh runs_'+str(i)+'.run '+str(seeds[started])
+                    if started < args.nruns:
+                        proc_run.append(subprocess.Popen(['ssh','-o','StrictHostKeyChecking=no',host,command],shell=False,stdin=None,stdout=None,stderr=None))
+                    started += 1
+                    isgood = True
+                except:
+                    isgood = False
+                if isgood:
+                    manager.append(host)
+        while proc_run:
+            for loc, proc in enumerate(proc_run):
+                retcode = proc.poll()
+                if retcode is not None:
+                    # A process has finished
+                    finished += 1
+                    if finished%10 == 0:
+                        print(str(finished)+'/'+str(args.nruns)+' runs done!\n')
+                    if started < args.nruns:
+                        host = manager[loc]
+                        command = 'cd ' + thisdir + '/herwig_runs_' + str(i) + '; '
+                        command += '../run.sh runs_'+str(i)+'.run '+str(seeds[started])
+                        proc_run[loc] = subprocess.Popen(['ssh','-o','StrictHostKeyChecking=no',host,command],shell=False,stdin=None,stdout=None,stderr=None)
+                        started += 1
+                    else:
+                        proc_run.remove(proc)
+            # Wait a little bit, then check if any process has finished again
+            time.sleep(1.0)
+        print(str(i+1) + '/' + str(len(parameterSets)) + ' sets of runs are done.')
 
-    # Debug output
-    print("test_nodes = ", args.test_nodes)
+    # Yodamerge and clean-up
+    # create a yodamerge script
+    f = open('merge.sh','w')
+    f.write('#!/bin/bash\n')
+    f.write('source ' + args.herwig_path + '\n')
+    f.write('source ' + args.analyses_path + '\n')
+    f.write('yodamerge *.yoda > runs_$1.yoda\n' )
+    f.close()
+    p = subprocess.Popen(['chmod a+x merge.sh'],shell=True,stdin=None,stdout=None,stderr=None)
+    while p.poll() is None:
+	time.sleep(0.1)
+        
+    for i, par in enumerate(parameterSets):
+        d = 'herwig_runs_' + str(i)
+        os.chdir(d)
+        p = subprocess.Popen(['../merge.sh '+str(i)],shell=True,stdin=None,stdout=None,stderr=None)
+        while p.poll() is None:
+	    time.sleep(0.1)
+
+        if args.clean_up:
+            shutil.rmtree('Herwig-scratch')
+            os.remove('runs_' + str(i) + '.run')
+        os.chdir('..')
+                    
+                            

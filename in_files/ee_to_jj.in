@@ -226,5 +226,5 @@ set /Herwig/DipoleShower/DipoleShowerHandler:HardScaleProfile NULL
 do /Herwig/MatrixElements/Matchbox/Factory:ProductionMode
 
 cd /Herwig/Generators
-set /Herwig/DipoleShower/DipoleShowerHandler:SubleadingNcEmissionsLimit 0
+
 saverun job_1 EventGenerator
