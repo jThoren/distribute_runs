@@ -1,0 +1,230 @@
+# -*- ThePEG-repository -*-
+
+##################################################
+## Herwig/Matchbox example input file
+##################################################
+
+##################################################
+## Collider type
+##################################################
+read snippets/Matchbox.in
+read snippets/EECollider.in
+
+##################################################
+## Beam energy sqrt(s)
+##################################################
+
+cd /Herwig/EventHandlers
+set EventHandler:LuminosityFunction:Energy 91.2*GeV
+
+##################################################
+## Process selection
+##################################################
+
+## Note that event generation may fail if no matching matrix element has
+## been found.  Coupling orders are with respect to the Born process,
+## i.e. NLO QCD does not require an additional power of alphas.
+
+## Model assumptions
+read Matchbox/StandardModelLike.in
+read Matchbox/DiagonalCKM.in
+
+## Set the order of the couplings
+cd /Herwig/MatrixElements/Matchbox
+set Factory:OrderInAlphaS 0
+set Factory:OrderInAlphaEW 2
+
+## Select the process
+## You may use identifiers such as p, pbar, j, l, mu+, h0 etc.
+#do Factory:Process e- e+ -> j j g
+do Factory:Process e- e+ -> j j
+
+## Special settings required for on-shell production of unstable particles
+## enable for on-shell top production
+# read Matchbox/OnShellTopProduction.in
+## enable for on-shell W, Z or h production
+# read Matchbox/OnShellWProduction.in
+# read Matchbox/OnShellZProduction.in
+# read Matchbox/OnShellHProduction.in
+
+##################################################
+## Testing 1 emission weights (should be 1 for ee
+## to qq)
+##################################################
+#set /Herwig/DipoleShower/DipoleShowerHandler:NEmissions 2
+
+##################################################
+## Turn on subleading Nc corrections
+##################################################
+## Turn on/off
+set /Herwig/DipoleShower/DipoleShowerHandler:DoSubleadingNc On
+## Set the number of subleading Nc emissions to calculate
+#set /Herwig/DipoleShower/DipoleShowerHandler:SubleadingNcEmissionsLimit 2
+
+##################################################
+## Make the events unweighted
+##################################################
+set /Herwig/Samplers/Sampler:AlmostUnweighted No
+
+##################################################
+## Calculate the CMECs
+##################################################
+## Set detuning
+#set /Herwig/DipoleShower/DipoleShowerHandler:Detuning 2
+## Set the reweighting factor
+#set /Herwig/DipoleShower/DipoleShowerHandler:CMECReweightFactor 1.0
+## Set the negative CMEC scaling
+#set /Herwig/DipoleShower/DipoleShowerHandler:NegCMECScaling 1.0 
+
+## Create an object of the CMEC class
+create Herwig::ColourMatrixElementCorrection /Herwig/DipoleShower/DipoleSplittingReweight
+## Set the splitting reweight to be the CMEC (it is a derived class of 
+## DipoleSplittingReweight) 
+set /Herwig/DipoleShower/DipoleShowerHandler:SplittingReweight /Herwig/DipoleShower/DipoleSplittingReweight
+## Checking that the splitting reweight was set
+get /Herwig/DipoleShower/DipoleShowerHandler:SplittingReweight
+
+##################################################
+## Set the density operator evolution scheme
+##################################################
+## Schemes:
+## 0 - Eikonal with cutoff
+## 1 - Eikonal without cutoff
+## 2 - Constant
+## 3 - Semi-leading Nc, only emitter/spectator have non-zero Vijk
+set /Herwig/DipoleShower/DipoleShowerHandler:DensityOperatorEvolution 1
+set /Herwig/DipoleShower/DipoleShowerHandler:DensityOperatorCutoff 1.0*GeV2
+
+##################################################
+## Turn on partial unweighting and set the 
+## reference weight
+##################################################
+# When trying to find an optimal reference weight 6.0 
+# looked best (but no larger weight was tested)
+# For 3 emissions 7.0 looked a bit better (with det=10)
+set /Herwig/DipoleShower/DipoleShowerHandler:DoPartialUnweightingAtEmission Off
+set /Herwig/DipoleShower/DipoleShowerHandler:ReferenceWeight 4.0
+
+##################################################
+## Matrix element library selection
+##################################################
+
+## Select a generic tree/loop combination or a
+## specialized NLO package
+
+# read Matchbox/MadGraph-GoSam.in
+read Matchbox/MadGraph-MadGraph.in
+# read Matchbox/MadGraph-NJet.in
+# read Matchbox/MadGraph-OpenLoops.in
+
+## Uncomment this to use ggh effective couplings
+## currently only supported by MadGraph-GoSam
+
+# read Matchbox/HiggsEffective.in
+
+##################################################
+## Cut selection
+## See the documentation for more options
+##################################################
+
+## cuts on additional jets
+
+read Matchbox/DefaultEEJets.in
+
+#set /Herwig/Cuts/JetFinder:ConeRadius 0.4
+#set FirstJet:PtMin 5.0*GeV
+#do FirstJet:YRange -5 5
+
+# set NJetsCut:NJetsMin 3
+
+##################################################
+## Scale choice
+## See the documentation for more options
+##################################################
+
+cd /Herwig/MatrixElements/Matchbox
+set Factory:ScaleChoice /Herwig/MatrixElements/Matchbox/Scales/SHatScale
+
+##################################################
+## Matching and shower selection
+##################################################
+
+#read Matchbox/MCatNLO-DefaultShower.in
+# read Matchbox/Powheg-DefaultShower.in
+## use for strict LO/NLO comparisons
+# read Matchbox/MCatLO-DefaultShower.in
+## use for improved LO showering
+# read Matchbox/LO-DefaultShower.in
+
+# read Matchbox/MCatNLO-DipoleShower.in
+# read Matchbox/Powheg-DipoleShower.in
+## use for strict LO/NLO comparisons
+# read Matchbox/MCatLO-DipoleShower.in
+## use for improved LO showering
+read Matchbox/LO-DipoleShower.in
+read Matchbox/PQCDLevel.in
+
+# read Matchbox/NLO-NoShower.in
+# read Matchbox/LO-NoShower.in
+
+##################################################
+## Scale uncertainties
+##################################################
+
+# read Matchbox/MuDown.in
+# read Matchbox/MuUp.in
+
+##################################################
+## Shower scale uncertainties
+##################################################
+
+# read Matchbox/MuQDown.in
+# read Matchbox/MuQUp.in
+
+##################################################
+## Analyses
+##################################################
+#library RivetAnalysis.so
+cd /Herwig/Analysis
+insert Rivet:Analyses 0 MC_EETOJETS 
+#insert Rivet:Analyses 0 MC_EETOJETS_POSW
+#insert Rivet:Analyses 0 MC_EETOJETS_NEGW
+insert Rivet:Analyses 0 Clustermass
+insert Rivet:Analyses 0 WEIGHTS
+##XXX_2015_ABC123
+insert /Herwig/Generators/EventGenerator:AnalysisHandlers 0 Rivet
+#insert /Herwig/Generators/EventGenerator:AnalysisHandlers 0 HepMC
+#set HepMCFile:Filename hepmc.fifo
+
+#################################################
+## Turn off stuff
+#################################################
+cd /Herwig/EventHandlers
+#set EventHandler:HadronizationHandler NULL
+
+##################################################
+## Speed up of integration step (worked, yay!)
+##################################################
+# crude read step
+set /Herwig/Samplers/CellGridSampler:InitialPoints 1000
+set /Herwig/Samplers/CellGridSampler:ExplorationPoints 500
+set /Herwig/Samplers/CellGridSampler:ExplorationSteps 1
+set /Herwig/Samplers/CellGridSampler:RemapperPoints 500
+
+##################################################
+## Do not apply profile scales for LEP as hard
+## scale coincides with kinematic limit
+##################################################
+
+set /Herwig/Shower/ShowerHandler:HardScaleProfile NULL
+set /Herwig/DipoleShower/DipoleShowerHandler:HardScaleProfile NULL
+
+##################################################
+## Save the generator
+##################################################
+
+do /Herwig/MatrixElements/Matchbox/Factory:ProductionMode
+
+cd /Herwig/Generators
+set /Herwig/DipoleShower/DipoleShowerHandler:SubleadingNcEmissionsLimit 0
+saverun job_1 EventGenerator

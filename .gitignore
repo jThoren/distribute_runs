@@ -1,3 +1,7 @@
+test_runs
+herwig_runs_*
+parameters
+load.py
 .cache
 __pycache
 *.pyc
